@@ -1,0 +1,4 @@
+#!/bin/bash
+
+sed "s/_day/day$1/g" src/bin/_day.rs > src/bin/day$1.rs
+code src/bin/day$1.rs src/bin/day$1.txt
