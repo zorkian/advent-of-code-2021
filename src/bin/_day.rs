@@ -1,19 +1,13 @@
-fn do_something(input: &str) -> u32 {
+fn part_one(input: &str) -> u32 {
+    0
+}
+
+fn part_two(input: &str) -> u32 {
     0
 }
 
 fn main() {
     let input = include_str!("_day.txt");
-    let answer = do_something(input);
-    println!("ANSWER: {}", answer)
-}
-
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_do_something() {
-        assert_eq!(do_something(""), 0);
-        assert_eq!(do_something(""), 0);
-    }
+    println!("PART ONE: {}", part_one(input));
+    println!("PART TWO: {}", part_two(input));
 }
