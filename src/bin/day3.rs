@@ -83,7 +83,6 @@ fn part_two(input: &str) -> u32 {
     }
 
     let cols = bits[0].len();
-    let rows = bits.len();
 
     let mut oxy = 0;
     let mut co2 = 0;
