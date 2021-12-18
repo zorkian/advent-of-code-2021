@@ -32,6 +32,14 @@ impl Pair {
             return what;
         }
 
+        // print!("Initial: ");
+        // self.print();
+        // println!("");
+
+        // print!("Adding: ");
+        // what.print();
+        // println!("");
+
         // Create new tuple to store ourself in, push down
         let mut rv = Pair::new();
         rv.left_pair = Some(Box::new(self));
@@ -47,13 +55,23 @@ impl Pair {
                 if did_split {
                     // Back to the top, have to handle any explosions each time we have
                     // done a single split
+                    // print!("Split: ");
+                    // rv.print();
+                    // println!("");
                     continue;
                 }
 
                 // No explosions, no splits, we're done
                 break;
+            } else {
+                // print!("Exploded: ");
+                // rv.print();
+                // println!("");
             }
         }
+        // print!("Final: ");
+        // rv.print();
+        // println!("");
 
         return rv;
     }
