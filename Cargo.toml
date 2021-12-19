@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 priority-queue = "1.2.1"
 regex = "1"
+bitreader = "0.3.4"
+hex = "0.4.3"
