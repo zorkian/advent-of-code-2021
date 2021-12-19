@@ -87,7 +87,10 @@ fn parse_input(input: &str, part_two: bool) -> Board {
             if part_two {
                 for ym in 0..=4 as u32 {
                     for xm in 0..=4 as u32 {
-                        let nlevel = ((level as u32 + (ym + xm)) % 9) + 1;
+                        if ym == 0 && xm == 0 {
+                            continue;
+                        }
+                        let nlevel = ((level as u32 + (ym + xm) - 1) % 9) + 1;
                         cells.insert(((y + (100 * ym)) * width) + (x + (xm * 100)), nlevel as u8);
                     }
                 }
@@ -142,7 +145,7 @@ fn traverse_astar(board: &mut Board) -> u32 {
             loop {
                 // println!("Scoring up {}, {}", test.X, test.Y);
                 board.visited.insert((test.Y * board.width) + test.X);
-                if test == (start) {
+                if test == start {
                     return risk;
                 }
                 risk += board.raw_risk_at(test.X, test.Y) as u32;
@@ -175,7 +178,9 @@ fn part_one(input: &str) -> u32 {
 
 fn part_two(input: &str) -> u32 {
     let mut input = parse_input(input, true);
-    traverse_astar(&mut input)
+    let rv = traverse_astar(&mut input);
+    //input.print();
+    rv
 }
 
 fn main() {
