@@ -252,54 +252,8 @@ impl World {
                             pod.energy * distance as u32,
                         );
                         world = self.clone();
-                    } else {
-                        // // Room is not accepting pods, so
-                        // //   b. Move into the hallway in a semi-intelligent way (?)
-                        // for hallway_idx in world.valid_hallway(room.position()) {
-                        //     // Attempt to move to this position and solve from there
-                        //     let distance = 1 + (room.position() as i32 - hallway_idx as i32).abs();
-                        //     world.hallway[hallway_idx] = Some(pod);
-                        //     world.room[idx].top = None;
-                        //     score(&world, events,
-                        //         format!(
-                        //             "moving pod {} out of room {} to hallway pos {} (can't go home yet)",
-                        //             pod.char(), idx, hallway_idx
-                        //         ),
-                        //         pod.energy * distance as u32,
-                        //     );
-                        //     world = self.clone();
-                        // }
                     }
                 }
-
-                // If this pod is blocking a bottom pod that wants to get out...
-                // let bpod = room.bottom.unwrap();
-                // if bpod.homeroom == room.id {
-                //     // Bottom pod is home, this case does not apply
-                //     continue;
-                // }
-
-                // Top pod is blocking, do the movement dance to try to give it room
-                // Room is not accepting pods, so
-                //   b. Move into the hallway in a semi-intelligent way (?)
-                // for hallway_idx in world.valid_hallway(room.position()) {
-                //     // Attempt to move to this position and solve from there
-                //     let distance = 1 + (room.position() as i32 - hallway_idx as i32).abs();
-                //     world.hallway[hallway_idx] = Some(pod);
-                //     world.room[idx].top = None;
-                //     score(
-                //         &world,
-                //         events,
-                //         format!(
-                //             "moving pod {} out of room {} to hallway pos {} (I'm blocking someone)",
-                //             pod.char(),
-                //             idx,
-                //             hallway_idx
-                //         ),
-                //         pod.energy * distance as u32,
-                //     );
-                //     world = self.clone();
-                // }
             } else if let Some(pod) = room.bottom {
                 // No top pod, only bottom, so try
                 if pod.homeroom != room.id {
@@ -341,23 +295,6 @@ impl World {
                             pod.energy * distance as u32,
                         );
                         world = self.clone();
-                    } else {
-                        // Room is not accepting pods or the hallway is unclear, so
-                        //   b. Move into the hallway in a semi-intelligent way (?)
-                        // for hallway_idx in world.valid_hallway(room.position()) {
-                        //     // Attempt to move to this position and solve from there
-                        //     let distance = 2 + (room.position() as i32 - hallway_idx as i32).abs();
-                        //     world.hallway[hallway_idx] = Some(pod);
-                        //     world.room[idx].bottom = None;
-                        //     score(&world, events,
-                        //         format!(
-                        //             "moving bottom pod {} out of room {} to hallway pos {} (can't go home yet)",
-                        //             pod.char(), idx, hallway_idx
-                        //         ),
-                        //         pod.energy * distance as u32
-                        //     );
-                        //     world = self.clone();
-                        // }
                     }
                 }
             }
