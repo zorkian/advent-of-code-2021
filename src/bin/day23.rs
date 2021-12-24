@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
 use std::cmp::{max, min};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy)]
 struct Pod {
@@ -56,6 +57,29 @@ impl Room {
 }
 
 impl World {
+    fn state(&self) -> String {
+        // Return state string for this
+        let mut rv = Vec::new();
+
+        for idx in 0..self.hallway.len() {
+            if let Some(pod) = self.hallway[idx] {
+                rv.push(format!("{}H{}", pod.char(), idx));
+            }
+        }
+
+        for idx in 0..self.room.len() {
+            if let Some(pod) = self.room[idx].top {
+                rv.push(format!("{}T{}", pod.char(), idx));
+            }
+            if let Some(pod) = self.room[idx].bottom {
+                rv.push(format!("{}B{}", pod.char(), idx));
+            }
+        }
+
+        // rv.sort();
+        rv.join("")
+    }
+
     fn hallway_is_clear(&self, from: usize, to: usize, allow_from: bool) -> bool {
         for idx in min(from, to)..=max(from, to) {
             if self.hallway[idx].is_some() {
@@ -122,7 +146,12 @@ impl World {
         println!("\n  #########");
     }
 
-    fn solve(&self, in_score: u32, events: &mut Vec<String>) -> Option<u32> {
+    fn solve(
+        &self,
+        in_score: u32,
+        events: &mut Vec<String>,
+        cache: &mut HashMap<String, Option<u32>>,
+    ) -> Option<u32> {
         // From wherever the world state is, calculate the minimal cost based on the
         // potential moves we could do to solve it
         //
@@ -136,6 +165,16 @@ impl World {
         // 4. Repeat?
 
         let mut scores = Vec::new();
+
+        // If this state is in our cache, return it
+        let mut events_sorted = events.clone();
+        events_sorted.sort();
+        let cache_key = events_sorted.join("");
+
+        if let Some(cached) = cache.get(&cache_key) {
+            // println!("Cache hit: {} = {:?}", cache_key, cached);
+            return *cached;
+        }
 
         // Base case, if everybody is home...
         let mut happy = 0;
@@ -155,10 +194,14 @@ impl World {
         }
 
         let mut world = self.clone();
-        let mut score = |world: &World, events: &mut Vec<String>, reason: String, score: u32| {
+        let mut score = |world: &World,
+                         events: &mut Vec<String>,
+                         cache: &mut HashMap<String, Option<u32>>,
+                         reason: String,
+                         score: u32| {
             // println!("Scored {} after {}", score, reason);
-            events.push(format!("{}, score {}", reason, score));
-            if let Some(total_score) = world.solve(score + in_score, events) {
+            events.push(reason); // format!("{}, score {}", reason, score));
+            if let Some(total_score) = world.solve(score + in_score, events, cache) {
                 scores.push(total_score);
             }
             events.pop();
@@ -197,12 +240,8 @@ impl World {
                     score(
                         &world,
                         events,
-                        format!(
-                            "moving pod {} out of hallway pos {} to room {}",
-                            pod.char(),
-                            idx,
-                            pod.homeroom
-                        ),
+                        cache,
+                        format!("MPH{}{}{}", pod.char(), idx, pod.homeroom),
                         rv,
                     );
                     world = self.clone();
@@ -218,84 +257,79 @@ impl World {
 
             if let Some(pod) = room.top {
                 // Top pod exists, if it's not home, see if we can send it home
-                if pod.homeroom != room.id {
-                    // TODO: Pod is not home, try
-                    //   a. Send it straight home (room in the target)
-                    let target_room = self.room[pod.homeroom];
+                if pod.homeroom == room.id {
+                    continue;
+                }
 
-                    // See if the hallway is clear from here to there
-                    let hallway_clear =
-                        world.hallway_is_clear(room.position(), target_room.position(), false);
+                // TODO: Pod is not home, try
+                //   a. Send it straight home (room in the target)
+                let target_room = self.room[pod.homeroom];
 
-                    if hallway_clear && target_room.accepting_pods() {
-                        // Yes we can go straight there, calculate it
-                        let mut distance =
-                            2 + (room.position() as i32 - target_room.position() as i32).abs();
-                        if target_room.bottom.is_none() {
-                            // If the bottom is open, use it (we know the top is open, since the target
-                            // room is accepting pods)
-                            distance += 1;
-                            world.room[pod.homeroom].bottom = Some(pod);
-                        } else {
-                            world.room[pod.homeroom].top = Some(pod);
-                        }
+                // See if the hallway is clear from here to there
+                let hallway_clear =
+                    world.hallway_is_clear(room.position(), target_room.position(), false);
 
-                        // Actually move the pod in our world, score it, then reset
-                        world.room[idx].top = None;
-                        score(
-                            &world,
-                            events,
-                            format!(
-                                "moving top pod {} distance from room {} to target room {}",
-                                distance, idx, pod.homeroom
-                            ),
-                            pod.energy * distance as u32,
-                        );
-                        world = self.clone();
+                if hallway_clear && target_room.accepting_pods() {
+                    // Yes we can go straight there, calculate it
+                    let mut distance =
+                        2 + (room.position() as i32 - target_room.position() as i32).abs();
+                    if target_room.bottom.is_none() {
+                        // If the bottom is open, use it (we know the top is open, since the target
+                        // room is accepting pods)
+                        distance += 1;
+                        world.room[pod.homeroom].bottom = Some(pod);
+                    } else {
+                        world.room[pod.homeroom].top = Some(pod);
                     }
+
+                    // Actually move the pod in our world, score it, then reset
+                    world.room[idx].top = None;
+                    score(
+                        &world,
+                        events,
+                        cache,
+                        format!("MTP2{}{}{}", distance, idx, pod.homeroom),
+                        pod.energy * distance as u32,
+                    );
+                    world = self.clone();
                 }
             } else if let Some(pod) = room.bottom {
                 // No top pod, only bottom, so try
-                if pod.homeroom != room.id {
-                    // See if the hallway is clear from here to there
-                    let hallway_clear = world.hallway_is_clear(
-                        room.position(),
-                        world.room[pod.homeroom].position(),
-                        false,
-                    );
+                if pod.homeroom == room.id {
+                    continue;
+                }
 
-                    // TODO: Pod is not home, try
-                    //   a. Send it straight home (room in the target)
-                    let target_room = self.room[pod.homeroom];
-                    if hallway_clear && target_room.accepting_pods() {
-                        // Yes we can go straight there, calculate it
-                        let mut distance =
-                            3 + (room.position() as i32 - target_room.position() as i32).abs();
-                        if target_room.bottom.is_none() {
-                            // If the bottom is open, use it (we know the top is open, since the target
-                            // room is accepting pods)
-                            distance += 1;
-                            world.room[pod.homeroom].bottom = Some(pod);
-                        } else {
-                            world.room[pod.homeroom].top = Some(pod);
-                        }
+                // TODO: Pod is not home, try
+                //   a. Send it straight home (room in the target)
+                let target_room = self.room[pod.homeroom];
 
-                        // Actually move the pod in our world, score it, then reset
-                        world.room[idx].bottom = None;
-                        score(
-                            &world,
-                            events,
-                            format!(
-                                "moving bottom pod {} distance {} from room {} to target room {}",
-                                pod.char(),
-                                distance,
-                                idx,
-                                pod.homeroom
-                            ),
-                            pod.energy * distance as u32,
-                        );
-                        world = self.clone();
+                // See if the hallway is clear from here to there
+                let hallway_clear =
+                    world.hallway_is_clear(room.position(), target_room.position(), false);
+
+                if hallway_clear && target_room.accepting_pods() {
+                    // Yes we can go straight there, calculate it
+                    let mut distance =
+                        3 + (room.position() as i32 - target_room.position() as i32).abs();
+                    if target_room.bottom.is_none() {
+                        // If the bottom is open, use it (we know the top is open, since the target
+                        // room is accepting pods)
+                        distance += 1;
+                        world.room[pod.homeroom].bottom = Some(pod);
+                    } else {
+                        world.room[pod.homeroom].top = Some(pod);
                     }
+
+                    // Actually move the pod in our world, score it, then reset
+                    world.room[idx].bottom = None;
+                    score(
+                        &world,
+                        events,
+                        cache,
+                        format!("MBP{}{}{}{}", pod.char(), distance, idx, pod.homeroom),
+                        pod.energy * distance as u32,
+                    );
+                    world = self.clone();
                 }
             }
         }
@@ -307,20 +341,25 @@ impl World {
 
             if let Some(pod) = room.top {
                 if pod.homeroom == room.id {
-                    continue;
+                    // However, if the bottom pod is not home, then we should move
+                    if let Some(bpod) = room.bottom {
+                        if bpod.homeroom == room.id {
+                            continue;
+                        }
+                    }
                 }
                 for hallway_idx in world.valid_hallway(room.position()) {
                     // Attempt to move to this position and solve from there
                     let distance = 1 + (room.position() as i32 - hallway_idx as i32).abs();
                     world.hallway[hallway_idx] = Some(pod);
                     world.room[idx].top = None;
-                    score(&world, events,
-                                format!(
-                                    "moving top pod {} out of room {} to hallway pos {} (can't go home yet)",
-                                    pod.char(), idx, hallway_idx
-                                ),
-                                pod.energy * distance as u32
-                            );
+                    score(
+                        &world,
+                        events,
+                        cache,
+                        format!("MTP{}{}{}", pod.char(), idx, hallway_idx),
+                        pod.energy * distance as u32,
+                    );
                     world = self.clone();
                 }
             } else if let Some(pod) = room.bottom {
@@ -332,27 +371,30 @@ impl World {
                     let distance = 2 + (room.position() as i32 - hallway_idx as i32).abs();
                     world.hallway[hallway_idx] = Some(pod);
                     world.room[idx].bottom = None;
-                    score(&world, events,
-                                format!(
-                                    "moving bottom pod {} out of room {} to hallway pos {} (can't go home yet)",
-                                    pod.char(), idx, hallway_idx
-                                ),
-                                pod.energy * distance as u32
-                            );
+                    score(
+                        &world,
+                        events,
+                        cache,
+                        format!("MBP{}{}{}", pod.char(), idx, hallway_idx),
+                        pod.energy * distance as u32,
+                    );
                     world = self.clone();
                 }
             }
         }
 
         if scores.len() == 0 {
+            cache.insert(cache_key, None);
             return None;
         }
-        scores.iter().map(|i| *i).min()
+        let smin = scores.iter().map(|i| *i).min();
+        cache.insert(cache_key, smin);
+        smin
     }
 }
 
 fn part_one(world: &World) -> u32 {
-    if let Some(score) = world.solve(0, &mut Vec::new()) {
+    if let Some(score) = world.solve(0, &mut Vec::new(), &mut HashMap::new()) {
         return score;
     }
     panic!("no score");
@@ -367,6 +409,32 @@ fn main() {
     let bronze = Pod::new(10, 1);
     let copper = Pod::new(100, 2);
     let desert = Pod::new(1000, 3);
+
+    let world = World {
+        hallway: [None; 11],
+        room: [
+            Room {
+                id: 0,
+                top: Some(desert),
+                bottom: Some(desert),
+            },
+            Room {
+                id: 1,
+                top: Some(amber),
+                bottom: Some(copper),
+            },
+            Room {
+                id: 2,
+                top: Some(copper),
+                bottom: Some(bronze),
+            },
+            Room {
+                id: 3,
+                top: Some(amber),
+                bottom: Some(bronze),
+            },
+        ],
+    };
 
     let world = World {
         hallway: [None; 11],
